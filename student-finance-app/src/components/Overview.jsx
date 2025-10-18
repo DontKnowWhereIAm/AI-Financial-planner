@@ -4,9 +4,20 @@ import './Overview.css';
 
 export default function Overview({ expenses }) {
   const budget = {
-    total: 2000,
+    total: 3000,
     spent: expenses.reduce((sum, exp) => sum + exp.amount, 0)
   };
+const categoryTotals = {
+  Education: 400,
+  Books: 100,
+  Housing: 800,
+  Healthcare: 300,
+  Insurance: 200,
+  Savings: 250,
+  Entertainment: 150,
+  Food: 350,
+  Other: 100
+};
 
   const categoryIcons = {
     Education : University,
@@ -19,11 +30,6 @@ export default function Overview({ expenses }) {
     Food: Utensils,
       Other: CreditCard
   };
-
-  const categoryTotals = expenses.reduce((acc, exp) => {
-    acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-    return acc;
-  }, {});
 
   const progressPercent = (budget.spent / budget.total) * 100;
   let progressClass = 'green';

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-
 export default function FindSchools({ onSchools }) {
   const [school, setSchool] = useState(''); 
   const [data, setData] = useState(null);   
@@ -13,7 +12,18 @@ export default function FindSchools({ onSchools }) {
       setSubmitted(true); 
     }
   };
-
+  const saveSchool = async()=>{
+    const newSchool = {"name" : school.name,
+        "state" : school.state,
+        "city" : school.city,
+        "tution" : school.tution
+    }
+    await fetch('http://localhost:5000/add-school', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(newSchool),
+  });
+  }
   const askChatGPT = async (prompt) => {
     setLoadingChat(true);
     try {
@@ -63,7 +73,9 @@ export default function FindSchools({ onSchools }) {
             <h3>Name : {data.school.name}</h3>
             <h3>State : {data.school.state}</h3>
             <h3>City : {data.school.city}</h3>
-            <h3>Average Tuition : {data.school.tution}</h3>
+            <h3>Average Tuition :</h3>
+            <h4>{data.school.tution.instate}</h4>
+            <h4>{data.school.tution.outofstate}</h4>
           </div>
 
           <div>
@@ -72,6 +84,7 @@ export default function FindSchools({ onSchools }) {
             {loadingChat && <p>Loading ChatGPT response...</p>}
             {chatReply && <p>{chatReply}</p>}
           </div>
+          <button onClick = {saveSchool()} id = "save">Save Results</button>
         </div>
       )}
     </div>
