@@ -1,5 +1,6 @@
 import React from 'react';
 import { DollarSign, TrendingUp, TrendingDown, PieChart, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
+import './Overview.css';
 
 export default function Overview({ expenses }) {
   const budget = {
@@ -20,75 +21,74 @@ export default function Overview({ expenses }) {
     return acc;
   }, {});
 
+  const progressPercent = (budget.spent / budget.total) * 100;
+  let progressClass = 'green';
+  if (progressPercent > 90) progressClass = 'red';
+  else if (progressPercent > 70) progressClass = 'yellow';
+
   return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-indigo-500">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-gray-600 font-medium">Monthly Budget</h3>
-            <DollarSign className="text-indigo-500" size={24} />
+    <div className="grid gap-4">
+      <div className="grid grid-cols-3 gap-4">
+        <div className="stat-card indigo">
+          <div className="stat-header">
+            <span className="stat-title">Monthly Budget</span>
+            <DollarSign style={{color: '#4f46e5'}} size={24} />
           </div>
-          <p className="text-3xl font-bold text-gray-800">${budget.total.toFixed(2)}</p>
+          <p className="stat-value">${budget.total.toFixed(2)}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-rose-500">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-gray-600 font-medium">Total Spent</h3>
-            <TrendingDown className="text-rose-500" size={24} />
+        <div className="stat-card rose">
+          <div className="stat-header">
+            <span className="stat-title">Total Spent</span>
+            <TrendingDown style={{color: '#f43f5e'}} size={24} />
           </div>
-          <p className="text-3xl font-bold text-gray-800">${budget.spent.toFixed(2)}</p>
+          <p className="stat-value">${budget.spent.toFixed(2)}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg p-6 border-l-4 border-emerald-500">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-gray-600 font-medium">Remaining</h3>
-            <TrendingUp className="text-emerald-500" size={24} />
+        <div className="stat-card emerald">
+          <div className="stat-header">
+            <span className="stat-title">Remaining</span>
+            <TrendingUp style={{color: '#10b981'}} size={24} />
           </div>
-          <p className="text-3xl font-bold text-gray-800">${(budget.total - budget.spent).toFixed(2)}</p>
+          <p className="stat-value">${(budget.total - budget.spent).toFixed(2)}</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-gray-800">Budget Progress</h3>
-          <span className="text-sm text-gray-600">
-            {((budget.spent / budget.total) * 100).toFixed(1)}% used
+      <div className="card">
+        <div className="flex-between mb-4">
+          <h3>Budget Progress</h3>
+          <span style={{fontSize: '0.875rem', color: '#6b7280'}}>
+            {progressPercent.toFixed(1)}% used
           </span>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-4">
-          <div
-            className={`h-4 rounded-full transition-all ${
-              (budget.spent / budget.total) > 0.9 ? 'bg-rose-500' : 
-              (budget.spent / budget.total) > 0.7 ? 'bg-amber-500' : 'bg-emerald-500'
-            }`}
-            style={{ width: `${Math.min((budget.spent / budget.total) * 100, 100)}%` }}
+        <div className="progress-bar">
+          <div 
+            className={`progress-fill ${progressClass}`}
+            style={{ width: `${Math.min(progressPercent, 100)}%` }}
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+      <div className="card">
+        <h3 className="flex-center mb-6">
           <PieChart size={20} />
           Spending by Category
         </h3>
-        <div className="space-y-4">
+        <div>
           {Object.entries(categoryTotals).map(([category, amount]) => {
             const Icon = categoryIcons[category] || CreditCard;
             const percentage = (amount / budget.spent) * 100;
             return (
-              <div key={category}>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Icon size={18} className="text-indigo-600" />
-                    <span className="font-medium text-gray-700">{category}</span>
-                  </div>
-                  <span className="font-semibold text-gray-800">${amount.toFixed(2)}</span>
+              <div key={category} className="category-item">
+                <div className="category-header">
+                  <span className="category-name">
+                    <Icon size={18} style={{color: '#4f46e5'}} />
+                    {category}
+                  </span>
+                  <span className="category-amount">${amount.toFixed(2)}</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div
-                    className="bg-indigo-600 h-2 rounded-full"
-                    style={{ width: `${percentage}%` }}
-                  />
+                <div className="category-bar">
+                  <div className="category-fill" style={{ width: `${percentage}%` }} />
                 </div>
               </div>
             );

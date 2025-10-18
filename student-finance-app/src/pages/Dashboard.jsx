@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import Overview from '../components/Overview';
 import Expenses from '../components/Expenses';
 import UploadStatements from '../components/UploadStatements';
+import './Dashboard.css';
 
 export default function Dashboard({ expenses, onLogout, onAddExpense }) {
   const navigate = useNavigate();
@@ -14,51 +15,38 @@ export default function Dashboard({ expenses, onLogout, onAddExpense }) {
     navigate('/');
   };
 
+  const universalName = window.ASTRA_USER_NAME || 'Julia';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="max-w-7xl mx-auto p-6">
-        <div className="flex justify-between items-center mb-8">
+    <div className="dashboard">
+      <div className="container">
+        <div className="dashboard-header">
           <div>
-            <h1 className="text-4xl font-bold text-gray-800 mb-2">Student Finance Hub</h1>
-            <p className="text-gray-600">Welcome back! Here's your financial overview</p>
+            <h1>AstraFin</h1>
+            <p>Welcome back {universalName}! Here's your financial overview</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-all flex items-center gap-2"
-          >
+          <button onClick={handleLogout} className="btn btn-secondary">
             <LogOut size={20} />
             Logout
           </button>
         </div>
 
-        <div className="flex gap-4 mb-6">
+        <div className="tabs">
           <button
             onClick={() => setActiveTab('overview')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === 'overview'
-                ? 'bg-indigo-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`tab ${activeTab === 'overview' ? 'active' : ''}`}
           >
             Overview
           </button>
           <button
             onClick={() => setActiveTab('expenses')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === 'expenses'
-                ? 'bg-indigo-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`tab ${activeTab === 'expenses' ? 'active' : ''}`}
           >
             Expenses
           </button>
           <button
             onClick={() => setActiveTab('upload')}
-            className={`px-6 py-3 rounded-lg font-semibold transition-all ${
-              activeTab === 'upload'
-                ? 'bg-indigo-600 text-white shadow-lg'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            }`}
+            className={`tab ${activeTab === 'upload' ? 'active' : ''}`}
           >
             Upload Statements
           </button>

@@ -4,6 +4,7 @@ import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 
+
 function App() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [expenses, setExpenses] = useState([

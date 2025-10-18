@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import './LoginPage.css';
 
 export default function LoginPage({ onLogin }) {
   const navigate = useNavigate();
@@ -14,48 +15,42 @@ export default function LoginPage({ onLogin }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-6">
-      <div className="max-w-md w-full">
+    <div className="login-page">
+      <div className="login-container">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
-          <p className="text-gray-600">Login to access your financial dashboard</p>
+          <h1>Welcome Back!</h1>
+          <p>Login to access your financial dashboard</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+        <div className="login-card">
+          <div className="login-form">
+            <div className="form-group">
+              <label className="label">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="student@university.edu"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="input"
               />
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+            <div className="form-group">
+              <label className="label">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="input"
               />
             </div>
-            <button
-              onClick={handleSubmit}
-              className="w-full bg-indigo-600 text-white py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-all shadow-lg"
-            >
+            <button onClick={handleSubmit} className="btn btn-primary" style={{width: '100%'}}>
               Login
             </button>
           </div>
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => navigate('/')}
-              className="text-indigo-600 hover:text-indigo-700 font-medium"
-            >
+          <div className="text-center mt-6">
+            <button onClick={() => navigate('/')} className="back-link">
               ← Back to Home
             </button>
           </div>

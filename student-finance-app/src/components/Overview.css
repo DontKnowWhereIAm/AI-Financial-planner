@@ -1,0 +1,76 @@
+.stat-card {
+  background: white;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-left: 4px solid;
+}
+
+.stat-card.indigo {
+  border-left-color: #4f46e5;
+}
+
+.stat-card.rose {
+  border-left-color: #f43f5e;
+}
+
+.stat-card.emerald {
+  border-left-color: #10b981;
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.stat-title {
+  color: #6b7280;
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.stat-value {
+  font-size: 1.875rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.category-item {
+  margin-bottom: 1rem;
+}
+
+.category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.category-name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.category-amount {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.category-bar {
+  width: 100%;
+  height: 0.5rem;
+  background-color: #e5e7eb;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.category-fill {
+  height: 100%;
+  background-color: #4f46e5;
+  border-radius: 9999px;
+}
