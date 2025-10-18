@@ -10,7 +10,6 @@ import './Dashboard.css';
 export default function Dashboard({ expenses, onLogout, onAddExpense }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
-  const [activeSchool,setActiveSchool] = useState('schools');
 
   const handleLogout = () => {
     onLogout();
@@ -53,11 +52,11 @@ export default function Dashboard({ expenses, onLogout, onAddExpense }) {
             Upload Statements
           </button>
           <button
-            onClick={() => setActiveTab('findschools')}
-            className={`tab ${activeTab === 'schools' ? 'active' : ''}`}
-          >
-            Upload Statements
-          </button>
+          onClick={() => setActiveTab('findschools')}
+          className={`tab ${activeTab === 'findschools' ? 'active' : ''}`}
+        >
+          Find Schools
+        </button>
         </div>
 
         {activeTab === 'overview' && <Overview expenses={expenses} />}
