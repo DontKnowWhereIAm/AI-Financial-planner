@@ -16,7 +16,7 @@ from typing import Dict, Any, List, Optional
 import requests
 
 # 🔹🔹🔹 PUT YOUR RENTCAST API KEY HERE 🔹🔹🔹
-RENTCAST_API_KEY = "YOUR_RENTCAST_API_KEY"
+RENTCAST_API_KEY = "dbf8016b33fe431580ff6021ad5640f6"
 # 🔹🔹🔹 END API KEY SECTION 🔹🔹🔹
 
 BASE_URL = "https://api.rentcast.io/v1/markets"
