@@ -1,15 +1,9 @@
 import React from 'react';
 import {Stethoscope,Hospital, Coins, University, DollarSign, TrendingUp, TrendingDown, PieChart, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
 import './Overview.css';
-import savedSchool from "./savedSchoo.json";
+import savedSchool from "./savedSchools.json";
 
 export default function Overview({ expenses }) {
-  const budget = {
-    total: 3000,
-    spent: Object.entries(categoryTotals).reduce(
-  (sum, [category, amount]) => sum + amount,
-  0)
-  };
 const categoryTotals = {
   Education: 400,
   Books: 100,
@@ -33,7 +27,12 @@ const categoryTotals = {
     Food: Utensils,
       Other: CreditCard
   };
-
+const budget = {
+    total: 3000,
+    spent: Object.entries(categoryTotals).reduce(
+  (sum, [category, amount]) => sum + amount,
+  0)
+  };
   const progressPercent = (budget.spent / budget.total) * 100;
   let progressClass = 'green';
   if (progressPercent > 90) progressClass = 'red';
@@ -109,19 +108,32 @@ const categoryTotals = {
         </div>
       </div>
       <div className="card">
-        <h3 className="flex-center mb-6">
-          Saved Schools
-          </h3>
-          {savedSchool.map((item) => (
-          <div key={item.name}>
-            <p>Name: {item.name} {item.state}</p>
-            <p>City: {item.city}</p>
-            <p>Tution: {item.tution}</p>
-            <p>Rent:  {item.rent}</p>
-            <p>Dorm:  {item.dorm}</p>
-          </div>
-))}
+  <h3 className="flex-center mb-6">Saved Schools</h3>
+
+  {Array.isArray(savedSchool) && savedSchool.length > 0 ? (
+    savedSchool.map((item, index) => (
+      <div key={item.name ? item.name + index : index} className="saved-school">
+        <p>
+          <strong>Name:</strong> {item.name} {item.state ? `(${item.state})` : ""}
+        </p>
+        <p>
+          <strong>City:</strong> {item.city || "N/A"}
+        </p>
+        <p>
+          <strong>Tuition:</strong> {item.tuition ?? item.tution ?? "N/A"}
+        </p>
+        <p>
+          <strong>Rent:</strong> {item.rent ?? "N/A"}
+        </p>
+        <p>
+          <strong>Dorm:</strong> {item.dorm ?? "N/A"}
+        </p>
       </div>
+    ))
+  ) : (
+    <p style={{ color: "#6b7280" }}>No saved schools yet.</p>
+  )}
+</div>
     </div>
   );
 }
