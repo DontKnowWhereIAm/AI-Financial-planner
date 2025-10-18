@@ -1,0 +1,244 @@
+#!/usr/bin/env python3
+"""
+bank_statement_to_monthly_csv.py
+
+Usage:
+  python bank_statement_to_monthly_csv.py
+
+What it does:
+- Prompts for a statement file path (PDF, CSV, XLS, XLSX)
+- Reads and normalizes transactions
+- Keeps only expenses (negative amounts or debit > 0)
+- Exports a CSV with columns: Month, Date, Description, Amount (negative), sorted by Month then Date
+
+Requirements (install as needed):
+  pip install pandas python-dateutil pdfplumber openpyxl
+
+Notes:
+- PDF parsing uses pdfplumber's table extraction; results vary by statement layout.
+- If auto-detection fails, the script will show columns it found and exit with a hint.
+"""
+
+from __future__ import annotations
+import sys
+import re
+import pandas as pd
+from dateutil import parser as dateparser
+from pathlib import Path
+
+try:
+    import pdfplumber
+except Exception:
+    pdfplumber = None  # Only needed for PDFs
+
+
+# --------- Helpers ---------
+DATE_CANDIDATES = [
+    "date", "post date", "posting date", "transaction date", "trans date",
+    "posted date", "value date", "statement date"
+]
+DESC_CANDIDATES = [
+    "description", "details", "detail", "memo", "narrative", "payee", "merchant", "transaction"
+]
+AMOUNT_CANDIDATES = ["amount", "amt", "transaction amount", "value"]
+DEBIT_CANDIDATES  = ["debit", "withdrawal", "withdrawals", "charges", "spend", "expense", "debits"]
+CREDIT_CANDIDATES = ["credit", "deposit", "deposits", "payments", "credits", "income"]
+
+
+def normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    # Standardize headers
+    df.columns = [re.sub(r"\s+", " ", str(c)).strip().lower() for c in df.columns]
+    return df
+
+
+def find_col(df: pd.DataFrame, candidates: list[str]) -> str | None:
+    cols = list(df.columns)
+    # exact/contains match preference
+    for c in candidates:
+        if c in cols:
+            return c
+    for c in candidates:
+        for col in cols:
+            if c in col:
+                return col
+    return None
+
+
+def coerce_amount(x):
+    if pd.isna(x):
+        return None
+    s = str(x).strip()
+    if s == "":
+        return None
+    # Handle parentheses as negatives
+    neg = False
+    if s.startswith("(") and s.endswith(")"):
+        neg = True
+        s = s[1:-1]
+    # Remove currency symbols and commas
+    s = re.sub(r"[^0-9.\-]", "", s)
+    if s.count("-") > 1:
+        # strange cases, keep last minus
+        s = s.replace("-", "")
+        s = "-" + s
+    try:
+        val = float(s)
+        return -abs(val) if neg else val
+    except ValueError:
+        return None
+
+
+def coerce_date(x):
+    if pd.isna(x):
+        return None
+    s = str(x).strip()
+    if not s:
+        return None
+    # Try robust parsing
+    try:
+        return pd.to_datetime(dateparser.parse(s, dayfirst=False, yearfirst=False))
+    except Exception:
+        return None
+
+
+def build_signed_amount(df: pd.DataFrame, amount_col: str | None, debit_col: str | None, credit_col: str | None) -> pd.Series:
+    if amount_col:
+        amt = df[amount_col].map(coerce_amount)
+        return amt
+    # Compute from debit/credit if present
+    debit = df[debit_col].map(coerce_amount) if debit_col else None
+    credit = df[credit_col].map(coerce_amount) if credit_col else None
+    if debit is not None and credit is not None:
+        # debit (expenses) negative, credit positive
+        return (credit.fillna(0) - debit.fillna(0))
+    if debit is not None:
+        return -debit  # expenses negative
+    if credit is not None:
+        return credit  # income positive
+    raise ValueError("Could not determine an amount source.")
+
+
+def read_csv_or_excel(path: Path) -> pd.DataFrame:
+    if path.suffix.lower() == ".csv":
+        df = pd.read_csv(path)
+    else:
+        df = pd.read_excel(path)
+    return normalize_columns(df)
+
+
+def read_pdf_tables(path: Path) -> pd.DataFrame:
+    if pdfplumber is None:
+        raise RuntimeError("pdfplumber not installed. Run: pip install pdfplumber")
+
+    rows = []
+    with pdfplumber.open(path) as pdf:
+        for page in pdf.pages:
+            try:
+                tables = page.extract_tables()
+            except Exception:
+                tables = []
+            for tbl in tables or []:
+                if not tbl or len(tbl) < 2:
+                    continue
+                # Heuristic: treat first row as header if it looks like headers
+                header = [re.sub(r"\s+", " ", (cell or "")).strip().lower() for cell in tbl[0]]
+                data_rows = tbl[1:]
+                # Sometimes PDFs repeat headers—skip empty rows
+                for r in data_rows:
+                    if any(c is not None and str(c).strip() for c in r):
+                        rows.append(dict(zip(header, r)))
+    if not rows:
+        raise ValueError("No tabular data found in PDF. Try exporting as CSV/XLSX first.")
+
+    df = pd.DataFrame(rows)
+    df = normalize_columns(df)
+    # Drop exact-duplicate header rows that slipped in as data
+    df = df[df.apply(lambda row: not all(str(v).lower() in DATE_CANDIDATES + DESC_CANDIDATES + AMOUNT_CANDIDATES + DEBIT_CANDIDATES + CREDIT_CANDIDATES for v in row), axis=1)]
+    return df
+
+
+def load_transactions(path: Path) -> pd.DataFrame:
+    ext = path.suffix.lower()
+    if ext in [".csv", ".xls", ".xlsx"]:
+        df = read_csv_or_excel(path)
+    elif ext == ".pdf":
+        df = read_pdf_tables(path)
+    else:
+        raise ValueError("Unsupported file type. Use PDF, CSV, or Excel.")
+
+    # Detect columns
+    date_col = find_col(df, DATE_CANDIDATES)
+    desc_col = find_col(df, DESC_CANDIDATES)
+    amount_col = find_col(df, AMOUNT_CANDIDATES)
+    debit_col = find_col(df, DEBIT_CANDIDATES)
+    credit_col = find_col(df, CREDIT_CANDIDATES)
+
+    missing = []
+    if not date_col:
+        missing.append("date")
+    if not desc_col:
+        missing.append("description")
+    if not (amount_col or debit_col or credit_col):
+        missing.append("amount/debit/credit")
+    if missing:
+        raise ValueError(
+            "Couldn't auto-detect required columns: "
+            + ", ".join(missing)
+            + f"\nColumns found: {list(df.columns)}"
+        )
+
+    # Build normalized frame
+    out = pd.DataFrame()
+    out["Date"] = df[date_col].map(coerce_date)
+    out["Description"] = df[desc_col].astype(str).str.replace(r"\s+", " ", regex=True).str.strip()
+
+    out["Amount"] = build_signed_amount(df, amount_col, debit_col, credit_col)
+    out = out.dropna(subset=["Date", "Amount"])
+
+    # Keep only expenses (negative)
+    expenses = out[out["Amount"] < 0].copy()
+    if expenses.empty:
+        print("No expenses found (no negative amounts/debits). Exporting empty CSV.")
+    expenses["Month"] = expenses["Date"].dt.to_period("M").astype(str)
+
+    # Sort
+    expenses = expenses.sort_values(["Month", "Date", "Description"]).loc[:, ["Month", "Date", "Description", "Amount"]]
+
+    return expenses
+
+
+def main():
+    try:
+        in_path_str = input("Enter path to your bank statement (PDF/CSV/XLS/XLSX): ").strip().strip('"').strip("'")
+        if not in_path_str:
+            print("No file provided. Exiting.")
+            sys.exit(1)
+
+        in_path = Path(in_path_str)
+        if not in_path.exists():
+            print(f"File not found: {in_path}")
+            sys.exit(1)
+
+        df = load_transactions(in_path)
+
+        default_out = in_path.with_suffix("").with_name(in_path.stem + "_expenses_by_month.csv")
+        out_path_str = input(f"Enter output CSV path [{default_out.name}]: ").strip()
+        out_path = Path(out_path_str) if out_path_str else default_out
+
+        # Ensure parent exists
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        df.to_csv(out_path, index=False)
+        print(f"Done! Wrote {len(df)} expense rows to: {out_path.resolve()}")
+
+    except Exception as e:
+        print("\nError:")
+        print(e)
+        print("\nTips:")
+        print("- If auto-detection failed, open your file and rename columns to include words like "
+              "'Date', 'Description', 'Amount' (or 'Debit'/'Credit').")
+        print("- For PDFs, try downloading a CSV or Excel version from your bank if available.")
+
+
+if __name__ == "__main__":
+    main()
