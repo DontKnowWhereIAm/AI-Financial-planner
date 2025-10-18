@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, University, Coins, Stethoscope,Hospital, Calendar, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
+import {Stethoscope,Hospital, Coins, University, DollarSign, TrendingUp, TrendingDown, PieChart, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
 import './Overview.css';
 
 export default function Overview({ expenses }) {
@@ -17,7 +17,7 @@ export default function Overview({ expenses }) {
     Savings : Coins,
     Entertainment: ShoppingBag,
     Food: Utensils,
-    Other: CreditCard
+      Other: CreditCard
   };
 
   const categoryTotals = expenses.reduce((acc, exp) => {
