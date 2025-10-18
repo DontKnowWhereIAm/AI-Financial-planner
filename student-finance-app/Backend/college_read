@@ -1,0 +1,197 @@
+#!/usr/bin/env python3
+"""
+tuition_lookup.py — Get in-state and out-of-state tuition from the College Scorecard API.
+
+Now includes API key directly in the code — no need to pass via --api-key.
+"""
+
+import sys
+import time
+import argparse
+from typing import Dict, List, Optional
+import requests
+
+# 🔹🔹🔹 PUT YOUR API KEY HERE 🔹🔹🔹
+API_KEY = "AvpTLjsZFAG52doRNNY5JgYrvenIfE1IgF6YrrTE"  # ← Replace with your own key if needed
+# 🔹🔹🔹 END API KEY SECTION 🔹🔹🔹
+
+BASE_URL = "https://api.data.gov/ed/collegescorecard/v1/schools"
+
+def build_fields(year: Optional[int]) -> List[str]:
+    prefix = "latest" if year is None else f"{year}"
+    return [
+        "id",
+        "school.name",
+        "school.city",
+        "school.state",
+        "school.school_url",
+        f"{prefix}.cost.tuition.in_state",
+        f"{prefix}.cost.tuition.out_of_state",
+    ]
+
+def request_page(params: Dict[str, str], page: int, per_page: int = 50) -> Dict:
+    qp = {
+        "api_key": API_KEY,  # 🔸 uses the built-in API key
+        "page": str(page),
+        "per_page": str(per_page),
+        "keys_nested": "true",
+    }
+    qp.update(params)
+    try:
+        resp = requests.get(BASE_URL, params=qp, timeout=30)
+    except requests.RequestException as e:
+        raise SystemExit(f"Network error: {e}")
+
+    if resp.status_code == 401:
+        raise SystemExit("401 Unauthorized: Check your API key.")
+    if resp.status_code == 403:
+        raise SystemExit("403 Forbidden: Access denied.")
+    if resp.status_code == 429:
+        retry_after = resp.headers.get("Retry-After")
+        wait_s = int(retry_after) if retry_after and retry_after.isdigit() else 3
+        print(f"429 Too Many Requests — retrying in {wait_s}s...", file=sys.stderr)
+        time.sleep(wait_s)
+        return request_page(params, page, per_page)
+    if resp.status_code >= 400:
+        try:
+            err = resp.json()
+        except Exception:
+            err = {"error": {"code": resp.status_code, "message": resp.text[:200]}}
+        raise SystemExit(f"HTTP {resp.status_code} error: {err}")
+
+    return resp.json()
+
+def normalize(s: str) -> str:
+    return " ".join(s.lower().split())
+
+def pick_best_match(results: List[Dict], target_name: Optional[str]) -> Optional[Dict]:
+    if not target_name:
+        return None
+    target = normalize(target_name)
+    for r in results:
+        nm = r.get("school", {}).get("name", "")
+        if normalize(nm) == target:
+            return r
+    return None
+
+def search_schools(
+    name: Optional[str],
+    unitid: Optional[int],
+    state: Optional[str],
+    city: Optional[str],
+    year: Optional[int],
+    per_page: int = 50,
+    max_pages: int = 10,
+) -> List[Dict]:
+    fields = build_fields(year)
+    params = {
+        "fields": ",".join(fields),
+        "sort": "school.name:asc",
+    }
+    if unitid is not None:
+        params["id"] = str(unitid)
+    if name:
+        params["school.name"] = name
+    if state:
+        params["school.state"] = state
+    if city:
+        params["school.city"] = city
+
+    all_results: List[Dict] = []
+    for page in range(max_pages):
+        data = request_page(params, page=page, per_page=per_page)
+        results = data.get("results", [])
+        if not results:
+            break
+        all_results.extend(results)
+        if unitid is not None:
+            break
+        if name and pick_best_match(results, name):
+            break
+
+    return all_results
+
+def extract_tuition(rec: Dict, year: Optional[int]) -> Dict[str, Optional[float]]:
+    prefix_key = "latest" if year is None else str(year)
+    obj = rec.get(prefix_key, {})
+    cost = obj.get("cost", {}).get("tuition", {})
+    return {
+        "in_state": cost.get("in_state"),
+        "out_of_state": cost.get("out_of_state"),
+    }
+
+def print_record(rec: Dict, year: Optional[int]) -> None:
+    school = rec.get("school", {})
+    nm = school.get("name", "N/A")
+    city = school.get("city", "")
+    st = school.get("state", "")
+    url = school.get("school_url", "")
+    tu = extract_tuition(rec, year)
+
+    print("\n=== Match ===")
+    print(f"Name     : {nm}")
+    if city or st:
+        print(f"Location : {city}, {st}".strip().rstrip(", "))
+    if url:
+        print(f"URL      : {url}")
+    label = "latest" if year is None else str(year)
+    print(f"{label}.cost.tuition.in_state     : {tu['in_state']}")
+    print(f"{label}.cost.tuition.out_of_state : {tu['out_of_state']}")
+
+def choose_interactively(candidates: List[Dict]) -> Optional[Dict]:
+    if not candidates:
+        return None
+    if len(candidates) == 1:
+        return candidates[0]
+
+    print("\nMultiple schools found. Pick one:")
+    for i, r in enumerate(candidates, 1):
+        s = r.get("school", {})
+        print(f"{i:>2}. {s.get('name','N/A')} — {s.get('city','')}, {s.get('state','')}")
+    while True:
+        try:
+            choice = input("Enter number (or blank to cancel): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return None
+        if choice == "":
+            return None
+        if choice.isdigit():
+            idx = int(choice)
+            if 1 <= idx <= len(candidates):
+                return candidates[idx - 1]
+        print("Invalid selection. Try again.")
+
+def main():
+    ap = argparse.ArgumentParser(description="Fetch in-state and out-of-state tuition for a U.S. college.")
+    group = ap.add_mutually_exclusive_group(required=True)
+    group.add_argument("--name", help='School name (e.g., "Harvard University").')
+    group.add_argument("--unitid", type=int, help="UNITID / institution ID for an exact match.")
+    ap.add_argument("--state", help="Two-letter state code (e.g., NC, CA).")
+    ap.add_argument("--city", help='City filter (e.g., "Boston").')
+    ap.add_argument("--year", type=int, help="Specific data year (e.g., 2022). Omit to use 'latest'.")
+    ap.add_argument("--per-page", type=int, default=50, help="Results per page (default 50, max 100).")
+    args = ap.parse_args()
+
+    results = search_schools(
+        name=args.name,
+        unitid=args.unitid,
+        state=args.state,
+        city=args.city,
+        year=args.year,
+        per_page=min(max(args.per_page, 1), 100),
+    )
+
+    if not results:
+        sys.exit("No results found. Try adjusting the name, state, or city.")
+
+    chosen = pick_best_match(results, args.name) if args.name else None
+    if not chosen:
+        chosen = choose_interactively(results)
+
+    if not chosen:
+        sys.exit("No selection made.")
+
+    print_record(chosen, args.year)
+
+if __name__ == "__main__":
+    main()
