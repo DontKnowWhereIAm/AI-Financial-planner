@@ -4,11 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import Overview from '../components/Overview';
 import Expenses from '../components/Expenses';
 import UploadStatements from '../components/UploadStatements';
+import FindSchools from '../components/FindSchools';
 import './Dashboard.css';
 
 export default function Dashboard({ expenses, onLogout, onAddExpense }) {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('overview');
+  const [activeSchool,setActiveSchool] = useState('schools');
 
   const handleLogout = () => {
     onLogout();
@@ -50,11 +52,18 @@ export default function Dashboard({ expenses, onLogout, onAddExpense }) {
           >
             Upload Statements
           </button>
+          <button
+            onClick={() => setActiveTab('findschools')}
+            className={`tab ${activeTab === 'schools' ? 'active' : ''}`}
+          >
+            Upload Statements
+          </button>
         </div>
 
         {activeTab === 'overview' && <Overview expenses={expenses} />}
         {activeTab === 'expenses' && <Expenses expenses={expenses} onAddExpense={onAddExpense} />}
         {activeTab === 'upload' && <UploadStatements />}
+        {activeTab === 'school' && <FindSchools/>}
       </div>
     </div>
   );
