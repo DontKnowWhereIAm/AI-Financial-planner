@@ -1,5 +1,5 @@
 import React from 'react';
-import { DollarSign, TrendingUp, TrendingDown, PieChart, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
+import { Plus, University, Coins, Stethoscope,Hospital, Calendar, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
 import './Overview.css';
 
 export default function Overview({ expenses }) {
