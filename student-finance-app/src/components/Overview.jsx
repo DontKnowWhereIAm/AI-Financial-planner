@@ -9,10 +9,14 @@ export default function Overview({ expenses }) {
   };
 
   const categoryIcons = {
-    Food: Utensils,
+    Education : University,
     Books: BookOpen,
     Housing: Home,
+    Healthcare : Hospital,
+    Insurance : Stethoscope,
+    Savings : Coins,
     Entertainment: ShoppingBag,
+    Food: Utensils,
     Other: CreditCard
   };
 

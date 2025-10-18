@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Calendar, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
+import { Plus, University, Coins, Stethoscope,Hospital, Calendar, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
 import './Expenses.css';
 
 export default function Expenses({ expenses, onAddExpense }) {
@@ -12,10 +12,14 @@ export default function Expenses({ expenses, onAddExpense }) {
   });
 
   const categoryIcons = {
-    Food: Utensils,
+    Education : University,
     Books: BookOpen,
     Housing: Home,
+    Healthcare : Hospital,
+    Insurance : Stethoscope,
+    Savings : Coins,
     Entertainment: ShoppingBag,
+    Food: Utensils,
     Other: CreditCard
   };
 
@@ -56,10 +60,14 @@ export default function Expenses({ expenses, onAddExpense }) {
                 onChange={(e) => setNewExpense({ ...newExpense, category: e.target.value })}
                 className="input"
               >
-                <option>Food</option>
+                <option>Education</option>
                 <option>Books</option>
                 <option>Housing</option>
+                <option>Healthcare</option>
+                <option>Insurance</option>
+                <option>Savings</option>
                 <option>Entertainment</option>
+                <option>Food</option>
                 <option>Other</option>
               </select>
             </div>

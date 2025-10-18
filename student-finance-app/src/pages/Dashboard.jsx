@@ -62,7 +62,7 @@ export default function Dashboard({ expenses, onLogout, onAddExpense }) {
         {activeTab === 'overview' && <Overview expenses={expenses} />}
         {activeTab === 'expenses' && <Expenses expenses={expenses} onAddExpense={onAddExpense} />}
         {activeTab === 'upload' && <UploadStatements />}
-        {activeTab === 'school' && <FindSchools/>}
+        {activeTab === 'findschools' && <FindSchools/>}
       </div>
     </div>
   );
