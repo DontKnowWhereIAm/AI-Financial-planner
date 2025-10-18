@@ -12,18 +12,21 @@ from typing import Dict, List, Optional
 import requests
 
 # 🔹🔹🔹 PUT YOUR API KEY HERE 🔹🔹🔹
-API_KEY = "AvpTLjsZFAG52doRNNY5JgYrvenIfE1IgF6YrrTE"  # ← Replace with your own key if needed
+API_KEY = "AvpTLjsZFAG52doRNNY5JgYrvenIfE1IgF6YrrTE"  
 # 🔹🔹🔹 END API KEY SECTION 🔹🔹🔹
 
 BASE_URL = "https://api.data.gov/ed/collegescorecard/v1/schools"
+YEAR = 2022
+TUITION_MULTIPLIER = 1.052
 
-def build_fields(year: Optional[int]) -> List[str]:
-    prefix = "latest" if year is None else f"{year}"
+def build_fields() -> List[str]:
+    prefix = f"{YEAR}"
     return [
         "id",
         "school.name",
         "school.city",
         "school.state",
+        "school.zip",
         "school.school_url",
         f"{prefix}.cost.tuition.in_state",
         f"{prefix}.cost.tuition.out_of_state",
@@ -31,7 +34,7 @@ def build_fields(year: Optional[int]) -> List[str]:
 
 def request_page(params: Dict[str, str], page: int, per_page: int = 50) -> Dict:
     qp = {
-        "api_key": API_KEY,  # 🔸 uses the built-in API key
+        "api_key": API_KEY,
         "page": str(page),
         "per_page": str(per_page),
         "keys_nested": "true",
@@ -79,11 +82,10 @@ def search_schools(
     unitid: Optional[int],
     state: Optional[str],
     city: Optional[str],
-    year: Optional[int],
     per_page: int = 50,
     max_pages: int = 10,
 ) -> List[Dict]:
-    fields = build_fields(year)
+    fields = build_fields()
     params = {
         "fields": ",".join(fields),
         "sort": "school.name:asc",
@@ -111,32 +113,34 @@ def search_schools(
 
     return all_results
 
-def extract_tuition(rec: Dict, year: Optional[int]) -> Dict[str, Optional[float]]:
-    prefix_key = "latest" if year is None else str(year)
-    obj = rec.get(prefix_key, {})
+def extract_tuition(rec: Dict) -> Dict[str, Optional[float]]:
+    obj = rec.get(str(YEAR), {})
     cost = obj.get("cost", {}).get("tuition", {})
-    return {
-        "in_state": cost.get("in_state"),
-        "out_of_state": cost.get("out_of_state"),
-    }
+    in_state = cost.get("in_state")
+    out_state = cost.get("out_of_state")
+    if in_state is not None:
+        in_state = round(in_state * TUITION_MULTIPLIER, 2)
+    if out_state is not None:
+        out_state = round(out_state * TUITION_MULTIPLIER, 2)
+    return {"in_state": in_state, "out_of_state": out_state}
 
-def print_record(rec: Dict, year: Optional[int]) -> None:
+def print_record(rec: Dict) -> None:
     school = rec.get("school", {})
     nm = school.get("name", "N/A")
     city = school.get("city", "")
     st = school.get("state", "")
+    zip_code = school.get("zip", "")
     url = school.get("school_url", "")
-    tu = extract_tuition(rec, year)
+    tu = extract_tuition(rec)
 
     print("\n=== Match ===")
     print(f"Name     : {nm}")
-    if city or st:
-        print(f"Location : {city}, {st}".strip().rstrip(", "))
+    if city or st or zip_code:
+        print(f"Location : {city}, {st} {zip_code}".strip().rstrip(", "))
     if url:
         print(f"URL      : {url}")
-    label = "latest" if year is None else str(year)
-    print(f"{label}.cost.tuition.in_state     : {tu['in_state']}")
-    print(f"{label}.cost.tuition.out_of_state : {tu['out_of_state']}")
+    print(f"{YEAR}.cost.tuition.in_state     : {tu['in_state']}")
+    print(f"{YEAR}.cost.tuition.out_of_state : {tu['out_of_state']}")
 
 def choose_interactively(candidates: List[Dict]) -> Optional[Dict]:
     if not candidates:
@@ -162,13 +166,12 @@ def choose_interactively(candidates: List[Dict]) -> Optional[Dict]:
         print("Invalid selection. Try again.")
 
 def main():
-    ap = argparse.ArgumentParser(description="Fetch in-state and out-of-state tuition for a U.S. college.")
+    ap = argparse.ArgumentParser(description=f"Fetch {YEAR} in-state and out-of-state tuition for a U.S. college.")
     group = ap.add_mutually_exclusive_group(required=True)
     group.add_argument("--name", help='School name (e.g., "Harvard University").')
     group.add_argument("--unitid", type=int, help="UNITID / institution ID for an exact match.")
     ap.add_argument("--state", help="Two-letter state code (e.g., NC, CA).")
     ap.add_argument("--city", help='City filter (e.g., "Boston").')
-    ap.add_argument("--year", type=int, help="Specific data year (e.g., 2022). Omit to use 'latest'.")
     ap.add_argument("--per-page", type=int, default=50, help="Results per page (default 50, max 100).")
     args = ap.parse_args()
 
@@ -177,7 +180,6 @@ def main():
         unitid=args.unitid,
         state=args.state,
         city=args.city,
-        year=args.year,
         per_page=min(max(args.per_page, 1), 100),
     )
 
@@ -191,7 +193,7 @@ def main():
     if not chosen:
         sys.exit("No selection made.")
 
-    print_record(chosen, args.year)
+    print_record(chosen)
 
 if __name__ == "__main__":
     main()
