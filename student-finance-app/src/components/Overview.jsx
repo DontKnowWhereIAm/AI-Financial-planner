@@ -1,11 +1,14 @@
 import React from 'react';
 import {Stethoscope,Hospital, Coins, University, DollarSign, TrendingUp, TrendingDown, PieChart, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
 import './Overview.css';
+import savedSchool from "./savedSchoo.json";
 
 export default function Overview({ expenses }) {
   const budget = {
     total: 3000,
-    spent: expenses.reduce((sum, exp) => sum + exp.amount, 0)
+    spent: Object.entries(categoryTotals).reduce(
+  (sum, [category, amount]) => sum + amount,
+  0)
   };
 const categoryTotals = {
   Education: 400,
@@ -104,6 +107,20 @@ const categoryTotals = {
             );
           })}
         </div>
+      </div>
+      <div className="card">
+        <h3 className="flex-center mb-6">
+          Saved Schools
+          </h3>
+          {savedSchool.map((item) => (
+          <div key={item.name}>
+            <p>Name: {item.name} {item.state}</p>
+            <p>City: {item.city}</p>
+            <p>Tution: {item.tution}</p>
+            <p>Rent:  {item.rent}</p>
+            <p>Dorm:  {item.dorm}</p>
+          </div>
+))}
       </div>
     </div>
   );

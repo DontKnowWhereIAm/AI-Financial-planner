@@ -55,7 +55,7 @@ export default function FindSchools({ onSchools }) {
   }, [submitted, school]);
 
   return (
-    <div>
+    <div class = "card">
       <h2>Enter the College of your choice</h2>
       <input
         type="text"
