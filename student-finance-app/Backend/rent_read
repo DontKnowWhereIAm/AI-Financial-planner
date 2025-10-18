@@ -1,0 +1,152 @@
+#!/usr/bin/env python3
+"""
+rentcast_market.py — Fetch rental market stats by ZIP code via RentCast.
+
+Examples:
+  python rentcast_market.py --zip 27514
+  python rentcast_market.py --zip 10001 --history 24mo
+  python rentcast_market.py --zip 94110 --bedrooms 1 2
+"""
+
+import sys
+import time
+import json
+import argparse
+from typing import Dict, Any, List, Optional
+import requests
+
+# 🔹🔹🔹 PUT YOUR RENTCAST API KEY HERE 🔹🔹🔹
+RENTCAST_API_KEY = "dbf8016b33fe431580ff6021ad5640f6"
+# 🔹🔹🔹 END API KEY SECTION 🔹🔹🔹
+
+BASE_URL = "https://api.rentcast.io/v1/markets"
+
+def _get(zip_code: str, data_type: str = "Rental", history_range: Optional[str] = None) -> Dict[str, Any]:
+    """
+    Call /v1/markets with required & optional params.
+    - zipCode: required
+    - dataType: "All" | "Sale" | "Rental" (default "Rental")
+    - historyRange: e.g. "12mo", "24mo" (defaults to last 12 months if omitted)
+    """
+    headers = {
+        "Accept": "application/json",
+        "X-Api-Key": RENTCAST_API_KEY,  # Auth header per docs
+    }
+    params = {
+        "zipCode": str(zip_code),
+        "dataType": data_type,
+    }
+    if history_range:
+        params["historyRange"] = history_range
+
+    # Basic retry for 429 Throttle
+    for attempt in range(3):
+        resp = requests.get(BASE_URL, headers=headers, params=params, timeout=30)
+        if resp.status_code == 429 and attempt < 2:
+            wait = int(resp.headers.get("Retry-After", "3"))
+            print(f"Rate limited (429). Retrying in {wait}s...", file=sys.stderr)
+            time.sleep(wait)
+            continue
+        if resp.status_code >= 400:
+            try:
+                err = resp.json()
+            except Exception:
+                err = {"error": {"code": resp.status_code, "message": resp.text[:200]}}
+            raise SystemExit(f"HTTP {resp.status_code} error: {err}")
+        try:
+            return resp.json()
+        except ValueError:
+            raise SystemExit("Failed to parse JSON from RentCast.")
+    raise SystemExit("Failed after retries due to rate limiting.")
+
+def summarize_current(rental_data: Dict[str, Any]) -> Dict[str, Optional[float]]:
+    """
+    Pull top-level current rental stats (averages for all properties in ZIP).
+    Keys typically available:
+      averageRent, medianRent, minRent, maxRent,
+      averageRentPerSquareFoot, averageSquareFootage, etc.
+    """
+    fields = ["averageRent", "medianRent", "minRent", "maxRent",
+              "averageRentPerSquareFoot", "averageSquareFootage",
+              "averageDaysOnMarket", "totalListings", "newListings"]
+    out = {}
+    for k in fields:
+        out[k] = rental_data.get(k)
+    return out
+
+def summarize_by_bedrooms(rental_data: Dict[str, Any], wanted_bedrooms: Optional[List[int]]) -> List[Dict[str, Any]]:
+    groups = rental_data.get("dataByBedrooms") or []
+    if not wanted_bedrooms:
+        return groups
+    wanted = set(wanted_bedrooms)
+    return [g for g in groups if isinstance(g.get("bedrooms"), int) and g["bedrooms"] in wanted]
+
+def format_money(n: Optional[float]) -> str:
+    if n is None:
+        return "N/A"
+    try:
+        return f"${int(round(n)):,}"
+    except Exception:
+        return str(n)
+
+def print_report(zip_code: str, data: Dict[str, Any], wanted_bedrooms: Optional[List[int]]):
+    print(f"\n=== RentCast Rental Market — ZIP {zip_code} ===")
+    rental = (data or {}).get("rentalData")
+    if not rental:
+        print("No rental data returned for this zip.")
+        return
+
+    cur = summarize_current(rental)
+    print("Current Averages (All Listings):")
+    print(f"  Average Rent:  {format_money(cur['averageRent'])}")
+    print(f"  Median Rent:   {format_money(cur['medianRent'])}")
+    print(f"  Min–Max Rent:  {format_money(cur['minRent'])} – {format_money(cur['maxRent'])}")
+    if cur.get("averageRentPerSquareFoot") is not None:
+        print(f"  Avg $/SqFt:    ${cur['averageRentPerSquareFoot']:.2f}")
+    if cur.get("averageSquareFootage") is not None:
+        print(f"  Avg SqFt:      {int(round(cur['averageSquareFootage'])):,}")
+    if cur.get("averageDaysOnMarket") is not None:
+        print(f"  Avg Days on Market: {cur['averageDaysOnMarket']:.1f}")
+    if cur.get("totalListings") is not None:
+        print(f"  Total Listings (mo): {int(cur['totalListings'])}")
+
+    print("\nBreakdown by Bedrooms:")
+    for g in summarize_by_bedrooms(rental, wanted_bedrooms):
+        b = g.get("bedrooms")
+        print(f"  • {b if b else 0}-BR: "
+              f"Avg {format_money(g.get('averageRent'))}, "
+              f"Med {format_money(g.get('medianRent'))}, "
+              f"Listings {g.get('totalListings', 'N/A')}")
+
+    # Show a few points of recent history if present
+    hist = (rental.get("history") or {})
+    if hist:
+        # keys like "2025-07": {...}; sort desc and show last 6 entries
+        months = sorted(hist.keys(), reverse=True)[:6]
+        print("\nRecent Monthly History (latest first):")
+        for m in months:
+            row = hist[m] or {}
+            avg = row.get("averageRent")
+            med = row.get("medianRent")
+            print(f"  {m}: Avg {format_money(avg)}, Med {format_money(med)}")
+
+def main():
+    ap = argparse.ArgumentParser(description="Fetch rental market data by ZIP using RentCast.")
+    ap.add_argument("--zip", required=True, help="US ZIP code (e.g., 27514)")
+    ap.add_argument("--history", help='History range like "12mo", "24mo" (default: ~12 months)')
+    ap.add_argument("--bedrooms", nargs="*", type=int, help="Only show bedroom groups you list (e.g., --bedrooms 1 2 3).")
+    ap.add_argument("--json", action="store_true", help="Print raw JSON response instead of a human summary.")
+    args = ap.parse_args()
+
+    if RENTCAST_API_KEY == "YOUR_RENTCAST_API_KEY":
+        sys.exit("Please paste your RentCast API key into RENTCAST_API_KEY at the top of this file.")
+
+    data = _get(zip_code=args.zip, data_type="Rental", history_range=args.history)
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+    else:
+        print_report(args.zip, data, args.bedrooms)
+
+if __name__ == "__main__":
+    main()
