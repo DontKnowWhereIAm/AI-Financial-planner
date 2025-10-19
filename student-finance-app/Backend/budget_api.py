@@ -134,6 +134,54 @@ def budget_rows():
 
     return {"file": str(csv_path), "rows": rows}
 
+# In budget_api.py
+from fastapi import UploadFile, File, Form, HTTPException
+import shutil
+import os
+
+# Import the callable you just added
+from Doc_read import process_statement
+
+@app.post("/api/upload/statement")
+async def upload_statement(
+    file: UploadFile = File(...),
+    mode: str = Form("all"),           # "all" or "expenses"
+    assume: str | None = Form(None),   # None | "positive" | "negative"
+    api_key: str | None = Form(None)   # optional override; else env var
+):
+    try:
+        # 1) save uploaded file
+        base_dir = _test_docs_dir() / "uploads"
+        base_dir.mkdir(parents=True, exist_ok=True)
+        dest = base_dir / file.filename
+
+        with dest.open("wb") as out:
+            shutil.copyfileobj(file.file, out)
+
+        # 2) resolve API key
+        key = api_key or os.getenv("KRONOSLABS_API_KEY")
+        if not key:
+            raise HTTPException(status_code=400, detail="Missing API key (set KRONOSLABS_API_KEY or pass api_key).")
+
+        # 3) call your processor
+        result = process_statement(
+            input_path=dest,
+            api_key=key,
+            mode=mode,
+            assume=assume,
+            out_dir=_test_docs_dir()     # write CSV into ../Test_documents
+        )
+
+        return {
+            "ok": True,
+            "input_file": str(dest),
+            **result
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 # -------------------------
 # Run directly (dev mode)

@@ -5,15 +5,49 @@ import './UploadStatements.css';
 export default function UploadStatements() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
 
-  const handleFileUpload = (e) => {
+  const handleFileUpload = async (e) => {
     const files = Array.from(e.target.files);
-    const newFiles = files.map(file => ({
-      id: Date.now() + Math.random(),
+    // optimistic add
+    const toAdd = files.map(file => ({
+      id: crypto.randomUUID(),
       name: file.name,
       size: (file.size / 1024).toFixed(2) + ' KB',
-      date: new Date().toLocaleDateString()
+      date: new Date().toLocaleDateString(),
+      status: 'Uploading…'
     }));
-    setUploadedFiles([...uploadedFiles, ...newFiles]);
+    setUploadedFiles(prev => [...toAdd, ...prev]);
+
+    // upload sequentially (simpler error handling)
+    for (const f of files) {
+      const id = toAdd.find(x => x.name === f.name)?.id;
+      try {
+        const form = new FormData();
+        form.append('file', f);
+        form.append('mode', 'all');      // or 'expenses'
+        // form.append('assume', 'negative'); // optional
+        // form.append('api_key', '...');     // normally not needed; use env on server
+
+        // Use Vite proxy: '/api' goes to FastAPI
+        const res = await fetch('/api/upload/statement', {
+          method: 'POST',
+          body: form
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        setUploadedFiles(prev => prev.map(item => item.id === id ? ({
+          ...item,
+          status: data.ok ? 'Processed' : 'Failed',
+          output_csv: data.output_csv,
+          rows: data.rows
+        }) : item));
+      } catch (err) {
+        setUploadedFiles(prev => prev.map(item => item.id === id ? ({
+          ...item,
+          status: `Error: ${String(err).replace(/^Error:\s*/,'')}`
+        }) : item));
+      }
+    }
   };
 
   return (
@@ -23,11 +57,12 @@ export default function UploadStatements() {
         <p className="mb-6">
           Upload your bank statements in PDF, CSV, or Excel format. We'll automatically extract and categorize your transactions.
         </p>
-        
+
         <div className="upload-area">
           <Upload className="upload-icon" size={48} />
           <h3 className="mb-2">Drop your files here</h3>
           <p className="mb-4">or click to browse</p>
+
           <input
             type="file"
             multiple
@@ -39,6 +74,7 @@ export default function UploadStatements() {
           <label htmlFor="file-upload" className="upload-label">
             Select Files
           </label>
+
           <p style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '1rem'}}>
             Supports PDF, CSV, and Excel files
           </p>
@@ -56,9 +92,12 @@ export default function UploadStatements() {
                   <div className="file-details">
                     <h4>{file.name}</h4>
                     <p>{file.size} • Uploaded on {file.date}</p>
+                    {file.output_csv && (
+                      <p style={{fontSize:'0.85rem', color:'#6b7280'}}>Rows: {file.rows} • Output: {file.output_csv}</p>
+                    )}
                   </div>
                 </div>
-                <span className="file-status">Processed</span>
+                <span className="file-status">{file.status}</span>
               </div>
             ))}
           </div>
@@ -70,8 +109,8 @@ export default function UploadStatements() {
         <ul>
           <li>• We extract transaction data from your statements automatically</li>
           <li>• Transactions are categorized using smart algorithms</li>
-          <li>• Your data is processed securely and never stored permanently</li>
-          <li>• You can review and edit categories before finalizing</li>
+          <li>• Your CSV is saved to <code>student-finance-app/Test_documents</code></li>
+          <li>• Overview updates from the latest CSV automatically</li>
         </ul>
       </div>
     </div>

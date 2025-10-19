@@ -296,6 +296,57 @@ def categorize_with_hermes(descriptions: List[str], api_key: str, batch_size: in
         out_mapping.setdefault(d, "Other")
     return out_mapping
 
+# ---- Library entrypoint for API use ----
+def process_statement(
+    input_path: Path | str,
+    api_key: str,
+    mode: str = "all",
+    assume: str | None = None,
+    out_dir: Path | str | None = None
+) -> dict:
+    """
+    Process a statement and write the CSV to ../Test_documents (or custom out_dir).
+    Returns metadata dict with output path and counts.
+    """
+    p = Path(str(input_path))
+    if not p.exists():
+        raise FileNotFoundError(f"File not found: {p}")
+
+    trans = load_transactions(p)
+
+    # interpret assume flags like CLI
+    if assume not in (None, "positive", "negative"):
+        assume = None
+    tx = select_transactions(trans, assume=assume, mode=mode)
+    if tx.empty:
+        # still write an empty file for consistency
+        target_dir = Path(out_dir) if out_dir else Path(__file__).resolve().parent.parent / "Test_documents"
+        target_dir.mkdir(parents=True, exist_ok=True)
+        out_path = target_dir / f"{p.stem}_transactions_by_month.csv"
+        pd.DataFrame(columns=["Month","Date","Description","Amount","Category"]).to_csv(out_path, index=False)
+        return {"output_csv": str(out_path), "rows": 0, "categories": CATEGORIES, "message": "No transactions detected."}
+
+    # Hermes categorization
+    unique_desc = sorted(tx["Description"].astype(str).unique())
+    mapping = categorize_with_hermes(unique_desc, api_key=api_key)
+
+    tx = tx.copy()
+    tx["Category"] = tx["Description"].map(lambda d: mapping.get(str(d), "Other"))
+    tx["Month"] = tx["Date"].dt.to_period("M").astype(str)
+    out_df = tx.sort_values(["Month","Date","Description"])[["Month","Date","Description","Amount","Category"]]
+
+    target_dir = Path(out_dir) if out_dir else Path(__file__).resolve().parent.parent / "Test_documents"
+    target_dir.mkdir(parents=True, exist_ok=True)
+    out_path = target_dir / f"{p.stem}_transactions_by_month.csv"
+    out_df.to_csv(out_path, index=False)
+
+    return {
+        "output_csv": str(out_path),
+        "rows": int(len(out_df)),
+        "categories": CATEGORIES,
+        "message": "Processed"
+    }
+
 def main():
     ap = argparse.ArgumentParser(description="Parse a bank statement and categorize transactions with Hermes (one call, batched).")
     ap.add_argument("input", help="Path to statement (PDF/CSV/XLS/XLSX)")
