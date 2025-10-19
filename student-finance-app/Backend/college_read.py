@@ -10,11 +10,11 @@ import time
 import argparse
 from typing import Dict, List, Optional
 import requests
+from dotenv import load_dotenv
+import os
 
-# 🔹🔹🔹 PUT YOUR API KEY HERE 🔹🔹🔹
-API_KEY = "AvpTLjsZFAG52doRNNY5JgYrvenIfE1IgF6YrrTE"  
-# 🔹🔹🔹 END API KEY SECTION 🔹🔹🔹
-
+load_dotenv()  
+API_KEY = os.getenv("API_KEY")
 BASE_URL = "https://api.data.gov/ed/collegescorecard/v1/schools"
 YEAR = 2022
 TUITION_MULTIPLIER = 1.052

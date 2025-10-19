@@ -1,15 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-budget_api.py
--------------
-FastAPI backend for the Student Financial Planner.
 
-Provides:
-  ✅ /api/budget/summary – totals per category + total spent/income
-  ✅ /api/budget/rows    – individual transaction rows (from latest CSV)
-"""
 
 from __future__ import annotations
 from fastapi import FastAPI
@@ -18,6 +10,7 @@ from pathlib import Path
 import pandas as pd
 import glob
 from uuid import uuid4
+
 
 
 # -------------------------

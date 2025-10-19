@@ -7,6 +7,8 @@
 import os
 import requests
 from typing import Iterable, Union
+from dotenv import load_dotenv
+load_dotenv()
 
 RENTCAST_API_BASE = os.getenv("RENTCAST_API_BASE", "https://api.rentcast.io/v1")
 API_KEY = os.getenv("RENTCAST_API_KEY")
