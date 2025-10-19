@@ -333,7 +333,7 @@ def main():
     out_df = tx.sort_values(["Month","Date","Description"])[["Month","Date","Description","Amount","Category"]]
 
     # --- 🔹 Save to your fixed folder ---
-    output_dir = Path(r"C:\Users\ssvas\Downloads\GitHub\AI-Financial-planner\student-finance-app\Test_documents")
+    output_dir = Path(r"../Test_documents")
     output_dir.mkdir(parents=True, exist_ok=True)
     out_path = output_dir / (in_path.stem + "_transactions_by_month.csv")
 
