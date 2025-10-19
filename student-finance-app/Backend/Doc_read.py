@@ -1,25 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Doc_read.py
-
-Reads a bank statement (PDF/CSV/XLS/XLSX), extracts transactions, sends ALL unique
-descriptions in ONE Kronos Labs Hermes call to categorize them, and writes:
-    Month, Date, Description, Amount, Category
-
-Install:
-  pip install pandas python-dateutil pdfplumber openpyxl kronoslabs
-
-Run (PowerShell examples):
-  $env:KRONOSLABS_API_KEY="YOUR_API_KEY"
-  python Doc_read.py "C:\Users\ssvas\Downloads\bank_statement_ex.xlsx"
-  # If your bank lists expenses as positive numbers:
-  python Doc_read.py "C:\Users\ssvas\Downloads\bank_statement_ex.xlsx" --assume-positive-expenses
-  # Custom output path:
-  python Doc_read.py "C:\Users\ssvas\Downloads\bank_statement_ex.xlsx" --out "C:\Users\ssvas\Downloads\expenses_by_month.csv"
-"""
-
 from __future__ import annotations
 import argparse, os, re, json
 from pathlib import Path
