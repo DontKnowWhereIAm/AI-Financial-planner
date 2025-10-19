@@ -1,50 +1,94 @@
-import React from 'react';
-import {Stethoscope,Hospital, Coins, University, DollarSign, TrendingUp, TrendingDown, PieChart, BookOpen, Home, Utensils, ShoppingBag, CreditCard } from 'lucide-react';
+// Overview.jsx
+import React, { useEffect, useMemo, useState } from 'react';
+import { Stethoscope, Hospital, Coins, University, DollarSign, TrendingUp, TrendingDown, PieChart, BookOpen, Home, Utensils, ShoppingBag, CreditCard, Car, Repeat } from 'lucide-react';
 import './Overview.css';
 import savedSchool from "./savedSchools.json";
 
-export default function Overview({  }) {
-  const school = savedSchool.database.School;
-let hasSchool;
-if (school) {
-  hasSchool = true;
-} else {
-  hasSchool = false;
-}
+const CATEGORY_ORDER = [
+  "Housing","Food","Transportation","Education","Books",
+  "Subscriptions","Entertainment","Healthcare","Insurance",
+  "Savings","Other"
+];
 
-const categoryTotals = {
-  Education: 400,
-  Books: 100,
-  Housing: 800,
-  Healthcare: 300,
-  Insurance: 200,
-  Savings: 250,
-  Entertainment: 150,
-  Food: 350,
-  Other: 100
+const CATEGORY_ICONS = {
+  Education: University,
+  Books: BookOpen,
+  Housing: Home,
+  Healthcare: Hospital,
+  Insurance: Stethoscope,
+  Savings: Coins,
+  Entertainment: ShoppingBag,
+  Food: Utensils,
+  Transportation: Car,
+  Subscriptions: Repeat,
+  Other: CreditCard
 };
 
-  const categoryIcons = {
-    Education : University,
-    Books: BookOpen,
-    Housing: Home,
-    Healthcare : Hospital,
-    Insurance : Stethoscope,
-    Savings : Coins,
-    Entertainment: ShoppingBag,
-    Food: Utensils,
-      Other: CreditCard
-  };
-const budget = {
-    total: 3000,
-    spent: Object.entries(categoryTotals).reduce(
-  (sum, [category, amount]) => sum + amount,
-  0)
-  };
-  const progressPercent = (budget.spent / budget.total) * 100;
+export default function Overview({ expenses = [] }) {
+  const school = savedSchool?.database?.School;
+  const hasSchool = Boolean(school);
+  const MONTHLY_BUDGET = 3000;
+
+  // from CSV summary endpoint
+  const [serverTotals, setServerTotals] = useState({});
+  const [serverSpent, setServerSpent] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+        setErr(null);
+        const res = await fetch("http://localhost:8000/api/budget/summary");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        setServerTotals(data.totals_by_category || {});
+        setServerSpent(Number(data.total_spent || 0));
+      } catch (e) {
+        setErr(String(e));
+        setServerTotals({});
+        setServerSpent(0);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  // compute totals from the UI-added expenses list
+  const uiTotals = useMemo(() => {
+    const acc = Object.fromEntries(CATEGORY_ORDER.map(c => [c, 0]));
+    for (const e of expenses) {
+      const cat = e.category && CATEGORY_ORDER.includes(e.category) ? e.category : "Other";
+      const amt = Number(e.amount || 0);
+      // UI list treats amounts as POSITIVE expenses
+      acc[cat] += Math.max(0, amt);
+    }
+    return acc;
+  }, [expenses]);
+
+  // combine server (CSV) + UI totals
+  const combinedTotals = useMemo(() => {
+    const out = {};
+    for (const c of CATEGORY_ORDER) {
+      out[c] = Number(serverTotals?.[c] || 0) + Number(uiTotals?.[c] || 0);
+    }
+    return out;
+  }, [serverTotals, uiTotals]);
+
+  const spent = useMemo(() => {
+    // total spent = sum of all category totals
+    return CATEGORY_ORDER.reduce((s, c) => s + Number(combinedTotals[c] || 0), 0);
+  }, [combinedTotals]);
+
+  const budget = { total: MONTHLY_BUDGET, spent, remaining: MONTHLY_BUDGET - spent };
+  const progressPercent = budget.total ? (budget.spent / budget.total) * 100 : 0;
   let progressClass = 'green';
   if (progressPercent > 90) progressClass = 'red';
   else if (progressPercent > 70) progressClass = 'yellow';
+
+  if (loading) return <div className="card"><p>Loading overview…</p></div>;
+  if (err) return <div className="card"><p style={{color:'crimson'}}>Failed to load CSV summary: {err}</p></div>;
 
   return (
     <div className="grid gap-4">
@@ -70,7 +114,7 @@ const budget = {
             <span className="stat-title">Remaining</span>
             <TrendingUp style={{color: '#10b981'}} size={24} />
           </div>
-          <p className="stat-value">${(budget.total - budget.spent).toFixed(2)}</p>
+          <p className="stat-value">${budget.remaining.toFixed(2)}</p>
         </div>
       </div>
 
@@ -82,7 +126,7 @@ const budget = {
           </span>
         </div>
         <div className="progress-bar">
-          <div 
+          <div
             className={`progress-fill ${progressClass}`}
             style={{ width: `${Math.min(progressPercent, 100)}%` }}
           />
@@ -95,9 +139,10 @@ const budget = {
           Spending by Category
         </h3>
         <div>
-          {Object.entries(categoryTotals).map(([category, amount]) => {
-            const Icon = categoryIcons[category] || CreditCard;
-            const percentage = (amount / budget.spent) * 100;
+          {CATEGORY_ORDER.map((category) => {
+            const amount = Number(combinedTotals[category] || 0);
+            const Icon = CATEGORY_ICONS[category] || CreditCard;
+            const pct = budget.spent > 0 ? (amount / budget.spent) * 100 : 0;
             return (
               <div key={category} className="category-item">
                 <div className="category-header">
@@ -108,30 +153,27 @@ const budget = {
                   <span className="category-amount">${amount.toFixed(2)}</span>
                 </div>
                 <div className="category-bar">
-                  <div className="category-fill" style={{ width: `${percentage}%` }} />
+                  <div className="category-fill" style={{ width: `${pct}%` }} />
                 </div>
               </div>
             );
           })}
         </div>
       </div>
-      <div className="card">
-        <h3 className="flex-center mb-6">
-          Saved Schools
-          </h3>
-         
-          {hasSchool ? (
-  <div class = "tab">
-    <h2>{school.name} - {school.state}</h2>
-    <h4 className = "category-name">City: <p >{school.city}</p></h4>
-    <h4 className = "category-name">Tuition: <p>{school.tution}</p></h4>
-    <h4 className = "category-name">Rent: <p>${school.rent}</p></h4>
-    <h3>Your Personalized Cost : $8,589</h3>
-  </div>
-) : (
-  <p>No saved school</p>
-)}
 
+      <div className="card">
+        <h3 className="flex-center mb-6">Saved Schools</h3>
+        {hasSchool ? (
+          <div className="tab">
+            <h2>{school.name} - {school.state}</h2>
+            <h4 className="category-name">City: <p>{school.city}</p></h4>
+            <h4 className="category-name">Tuition: <p>{school.tution}</p></h4>
+            <h4 className="category-name">Rent: <p>${school.rent}</p></h4>
+            <h3>Your Personalized Cost : $8,589</h3>
+          </div>
+        ) : (
+          <p>No saved school</p>
+        )}
       </div>
     </div>
   );
