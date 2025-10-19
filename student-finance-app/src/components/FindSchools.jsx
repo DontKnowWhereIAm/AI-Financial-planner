@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import './FindSchools.css';
 export default function FindSchools({ onSchools }) {
   const [school, setSchool] = useState(''); 
   const [data, setData] = useState(null);   
@@ -11,14 +12,24 @@ export default function FindSchools({ onSchools }) {
     if (onSchools(school)) {
       setSubmitted(true); 
     }
+
   };
   const saveSchool = async()=>{
-    const newSchool = {"name" : school.name,
+    let stateInOut = "";
+    const tutionstate = document.getElementById("tution");
+    if(tutionstate == "inState"){
+      stateInOut = "In-State:" ;
+    }
+    else{
+      stateInOut = "Out of State:";
+    }
+    const newSchool = {
+      "name" : school.name,
         "state" : school.state,
         "city" : school.city,
-        "tution" : school.tution
+        "tution" : `${stateInOut} ${school.tution}`
     }
-    await fetch('http://localhost:5000/add-school', {
+    await fetch('http://localhost:5000/api/append-school', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(newSchool),
@@ -55,17 +66,27 @@ export default function FindSchools({ onSchools }) {
   }, [submitted, school]);
 
   return (
-    <div class = "card">
-      <h2>Enter the College of your choice</h2>
+    <div className = "card">
+      <div className = "flex-center">
+        <div className = "grid">
+      <h2 >Enter the College of your choice</h2>
       <input
         type="text"
         value={school}
+        id = "input-box"
         onChange={(e) => setSchool(e.target.value)}
       />
-      <button onClick={handleSubmit} className="btn btn-primary">
+      <label ><p>In-State or Out of State</p></label>
+      <select class = "tuition" id  = "tuition">
+      <option value = ""></option>
+      <option value = "inState">In-State</option>
+      <option value = "outState">Out of State</option>
+      </select>
+      <button id = "school-button"onClick={handleSubmit} className="btn btn-primary">
         Get Cost Rates
       </button>
-
+      </div>
+         
       {data && (
         <div>
           <div>
@@ -87,6 +108,7 @@ export default function FindSchools({ onSchools }) {
           <button onClick = {saveSchool()} id = "save">Save Results</button>
         </div>
       )}
+      </div>
     </div>
   );
 }

@@ -3,7 +3,15 @@ import {Stethoscope,Hospital, Coins, University, DollarSign, TrendingUp, Trendin
 import './Overview.css';
 import savedSchool from "./savedSchools.json";
 
-export default function Overview({ expenses }) {
+export default function Overview({  }) {
+  const school = savedSchool.database.School;
+let hasSchool;
+if (school) {
+  hasSchool = true;
+} else {
+  hasSchool = false;
+}
+
 const categoryTotals = {
   Education: 400,
   Books: 100,
@@ -108,32 +116,23 @@ const budget = {
         </div>
       </div>
       <div className="card">
-  <h3 className="flex-center mb-6">Saved Schools</h3>
+        <h3 className="flex-center mb-6">
+          Saved Schools
+          </h3>
+         
+          {hasSchool ? (
+  <div class = "tab">
+    <h2>{school.name} - {school.state}</h2>
+    <h4 className = "category-name">City: <p >{school.city}</p></h4>
+    <h4 className = "category-name">Tuition: <p>{school.tution}</p></h4>
+    <h4 className = "category-name">Rent: <p>${school.rent}</p></h4>
+    <h3>Your Personalized Cost : $8,589</h3>
+  </div>
+) : (
+  <p>No saved school</p>
+)}
 
-  {Array.isArray(savedSchool) && savedSchool.length > 0 ? (
-    savedSchool.map((item, index) => (
-      <div key={item.name ? item.name + index : index} className="saved-school">
-        <p>
-          <strong>Name:</strong> {item.name} {item.state ? `(${item.state})` : ""}
-        </p>
-        <p>
-          <strong>City:</strong> {item.city || "N/A"}
-        </p>
-        <p>
-          <strong>Tuition:</strong> {item.tuition ?? item.tution ?? "N/A"}
-        </p>
-        <p>
-          <strong>Rent:</strong> {item.rent ?? "N/A"}
-        </p>
-        <p>
-          <strong>Dorm:</strong> {item.dorm ?? "N/A"}
-        </p>
       </div>
-    ))
-  ) : (
-    <p style={{ color: "#6b7280" }}>No saved schools yet.</p>
-  )}
-</div>
     </div>
   );
 }
