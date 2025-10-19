@@ -299,7 +299,6 @@ def categorize_with_hermes(descriptions: List[str], api_key: str, batch_size: in
 def main():
     ap = argparse.ArgumentParser(description="Parse a bank statement and categorize transactions with Hermes (one call, batched).")
     ap.add_argument("input", help="Path to statement (PDF/CSV/XLS/XLSX)")
-    ap.add_argument("--out", help="Output CSV path (default: <stem>_transactions_by_month.csv)")
     ap.add_argument("--assume-positive-expenses", action="store_true", help="Legacy: treat positive amounts as expenses (only if --mode expenses).")
     ap.add_argument("--assume-negative-expenses", action="store_true", help="Legacy: treat negative amounts as expenses (only if --mode expenses).")
     ap.add_argument("--mode", choices=["all","expenses"], default="all", help="all = deposits + withdrawals (default), expenses = withdrawals only")
@@ -320,12 +319,10 @@ def main():
     tx = select_transactions(trans, assume=assume, mode=args.mode)
 
     if tx.empty:
-        out_path = Path(args.out) if args.out else in_path.with_name(in_path.stem + "_transactions_by_month.csv")
-        pd.DataFrame(columns=["Month","Date","Description","Amount","Category"]).to_csv(out_path, index=False)
-        print(f"No transactions detected. Wrote empty file: {out_path.resolve()}")
+        print("⚠️ No transactions detected.")
         return
 
-    # Hermes: categorize ALL unique descriptions
+    # Hermes categorization
     unique_desc = sorted(tx["Description"].astype(str).unique())
     mapping = categorize_with_hermes(unique_desc, api_key=api_key)
 
@@ -334,12 +331,17 @@ def main():
     tx["Month"] = tx["Date"].dt.to_period("M").astype(str)
 
     out_df = tx.sort_values(["Month","Date","Description"])[["Month","Date","Description","Amount","Category"]]
-    out_path = Path(args.out) if args.out else in_path.with_name(in_path.stem + "_transactions_by_month.csv")
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # --- 🔹 Save to your fixed folder ---
+    output_dir = Path(r"C:\Users\ssvas\Downloads\GitHub\AI-Financial-planner\student-finance-app\Test_documents")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    out_path = output_dir / (in_path.stem + "_transactions_by_month.csv")
+
     out_df.to_csv(out_path, index=False)
 
-    print(f"Wrote {len(out_df)} rows to: {out_path.resolve()}")
+    print(f"✅ Wrote {len(out_df)} rows to: {out_path.resolve()}")
     print("Categories:", ", ".join(CATEGORIES))
+
 
 if __name__ == "__main__":
     main()
